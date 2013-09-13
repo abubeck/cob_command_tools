@@ -26,26 +26,27 @@ class simple_moveit_interface:
 
 
     def __init__(self):
-        pass
+        
+        transformer = self.get_transform_listener()
 
-    def MoveLin(self, target_frame = "arm_ee_link", goal_frame = "base_link", x, y, z, r, p, y):
+    def MoveLinExtended(self, target_frame = "arm_ee_link", goal_frame = "base_link", x = 0.0, y = 0.0, z = 0.0, roll = 0.0, pitch = 0.0, yaw = 0.0):
         goal_pose = PoseStamped()
         goal_pose.header.frame_id = goal_frame
         goal_pose.pose.position.x = x
         goal_pose.pose.position.y = y
         goal_pose.pose.position.z = z
 
-        [rx, ry, rz, rw] = tf.transformations.quaternion_from_euler(r, p, y, 'sxyz')
+        [rx, ry, rz, rw] = tf.transformations.quaternion_from_euler(roll, pitch, yaw, 'sxyz')
 
         goal_pose.pose.orientation.x = rx
         goal_pose.pose.orientation.y = ry
         goal_pose.pose.orientation.z = rz
         goal_pose.pose.orientation.w = rw
 
-        self.MoveLin(target_frame, goal_pose)
+        return self.MoveLin(target_frame, goal_pose)
 
-    def MoveLin(self, target_frame = "arm_ee_link", goal_pose):
-        self.pubPose.publish(goal_pose)
+    def MoveLin(self, target_frame = "arm_ee_link", goal_pose = PoseStamped()):
+        #self.pubPose.publish(goal_pose)
         mgc = self.get_move_group_commander("arm")
         print "Set endeffector to " , target_frame
         mgc.set_end_effector_link(target_frame)
@@ -56,12 +57,11 @@ class simple_moveit_interface:
         path,fraction = mgc.compute_cartesian_path([control_goal.pose], 0.02, 3, True)
         print "Fraction: ", fraction
         if fraction > 0.95:
-            mgc.execute(path)
-            return True
+            return mgc.execute(path)
         else:
             return False
 
-    def MovePTP(self, target_frame = "arm_ee_link", goal_pose):
+    def MovePTP(self, target_frame = "arm_ee_link", goal_pose = PoseStamped()):
         mgc = self.get_move_group_commander("arm")
         print "Set endeffector to " , target_frame
         mgc.set_end_effector_link(target_frame)
@@ -116,11 +116,11 @@ class simple_moveit_interface:
         
         if frac == 1.0:
             if mgc.execute(traj):
-            print "Done moving"
+                print "Done moving"
                 return 'succeeded'
-        else:
-            print "Something happened during execution"
-            print 'failed'
+            else:
+                print "Something happened during execution"
+                print 'failed'
         else:
             print "Failed to plan full path!"
             return 'failed'
@@ -149,10 +149,10 @@ class simple_moveit_interface:
 
     def convertToBaseLink(self, goal_pose, target="base_link"):
         if(goal_pose.header.frame_id != target):
-              
+            transformer = self.get_transform_listener()
             goal_in_bl = deepcopy(goal_pose)
 
-            self.transformer.waitForTransform(target, goal_pose.header.frame_id, rospy.Time(), rospy.Duration(8.0))
+            transformer.waitForTransform(target, goal_pose.header.frame_id, rospy.Time(), rospy.Duration(8.0))
               
             print "Converting from ", goal_pose.header.frame_id, " to ", target
             now = rospy.Time.now()
@@ -160,28 +160,28 @@ class simple_moveit_interface:
 
             rospy.sleep(0.1);
 
-            self.transformer.waitForTransform(target, goal_pose.header.frame_id, now, 
+            transformer.waitForTransform(target, goal_pose.header.frame_id, now, 
             rospy.Duration(8.0))
 
             print "wait done"
 
             #goal.goal_pose.header.stamp = self.transformer.getLatestCommonTime("/base_link", goal.goal_pose.header.frame_id)
-
-            (trans,rot) = self.transformer.lookupTransform(target, goal_pose.header.frame_id, now)
+  
+            (trans,rot) = transformer.lookupTransform(target, goal_pose.header.frame_id, now)
             print "tansform: ", trans
             print "rot: ", rot
 
             print "doing the actual tranform"
             try:
-            goal_in_bl = self.transformer.transformPose(target, goal_pose)
-                except Exception as e:
-            print "Error during transformPose"
-            print e
+                goal_in_bl = transformer.transformPose(target, goal_pose)
+            except Exception as e:
+                print "Error during transformPose"
+                print e
 
             print "Transformed MoveLin target to: ", goal_in_bl
-            for i in range(0,5):
-                self.broadcaster.sendTransform([goal_in_bl.pose.position.x, goal_in_bl.pose.position.y, goal_in_bl.pose.position.z] , [goal_in_bl.pose.orientation.x, goal_in_bl.pose.orientation.y, goal_in_bl.pose.orientation.z, goal_in_bl.pose.orientation.w] , goal_in_bl.header.stamp, "MovePTPFrame", target)
-                self.pubs.publish(goal_in_bl)
+            #for i in range(0,5):
+            #    self.broadcaster.sendTransform([goal_in_bl.pose.position.x, goal_in_bl.pose.position.y, goal_in_bl.pose.position.z] , [goal_in_bl.pose.orientation.x, goal_in_bl.pose.orientation.y, goal_in_bl.pose.orientation.z, goal_in_bl.pose.orientation.w] , goal_in_bl.header.stamp, "MovePTPFrame", target)
+            #    self.pubs.publish(goal_in_bl)
             return goal_in_bl
         else:
             print "Conversion not required"

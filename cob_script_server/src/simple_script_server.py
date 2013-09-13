@@ -76,11 +76,11 @@ from trajectory_msgs.msg import *
 from geometry_msgs.msg import *
 #from pr2_controllers_msgs.msg import *	#replaced by control_msgs.msg (FollowJointTrajectoryAction)
 from move_base_msgs.msg import *
-from arm_navigation_msgs.msg import *
-from arm_navigation_msgs.srv import *
+#from arm_navigation_msgs.msg import *
+#from arm_navigation_msgs.srv import *
 from tf.transformations import *
 from std_msgs.msg import String,ColorRGBA
-from kinematics_msgs.srv import *
+#from kinematics_msgs.srv import *
 from control_msgs.msg import *
 
 # care-o-bot includes
